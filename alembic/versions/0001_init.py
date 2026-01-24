@@ -16,6 +16,7 @@ booking_status = postgresql.ENUM(
     "CANCELLED",
     "EXPIRED",
     name="booking_status",
+    create_type=False,
 )
 
 payment_status = postgresql.ENUM(
@@ -25,13 +26,27 @@ payment_status = postgresql.ENUM(
     "FAILED",
     "CANCELLED",
     name="payment_status",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS btree_gist")
-    booking_status.create(op.get_bind(), checkfirst=True)
-    payment_status.create(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(
+        "HOLD",
+        "CONFIRMED",
+        "CANCELLED",
+        "EXPIRED",
+        name="booking_status",
+    ).create(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(
+        "NEW",
+        "PENDING",
+        "PAID",
+        "FAILED",
+        "CANCELLED",
+        name="payment_status",
+    ).create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "tables",
@@ -130,5 +145,5 @@ def downgrade() -> None:
     op.drop_table("schedule_rules")
     op.drop_table("clients")
     op.drop_table("tables")
-    payment_status.drop(op.get_bind(), checkfirst=True)
-    booking_status.drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name="payment_status").drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name="booking_status").drop(op.get_bind(), checkfirst=True)

@@ -42,7 +42,7 @@ class Booking(Base):
     __table_args__ = (
         ExcludeConstraint(
             ("table_id", "="),
-            ("tsrange(start_at, end_at, '[]')", "&&"),
+            (func.tsrange(start_at, end_at, "[]"), "&&"),
             name="bookings_no_overlap",
             using="gist",
             postgresql_where="status IN ('HOLD', 'CONFIRMED')",

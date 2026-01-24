@@ -1,14 +1,13 @@
 # Booked Table
 
-Production-ready сервис бронирования столов по времени с оплатой T-Bank, синхронизацией CalDAV (Яндекс) и веб-админкой.
+Production-ready сервис бронирования столов по времени с Telegram-ботом, админкой, оплатой и календарной синхронизацией.
 
-## Запуск
+## Быстрый старт
 
 ```bash
 git clone <repo>
 cd booked-table
 cp .env.example .env
-# заполните ENV
 
 docker compose up --build
 ```
@@ -31,13 +30,22 @@ print(bcrypt.hashpw(password, bcrypt.gensalt()).decode())
 PY
 ```
 
-## Настройка столов и расписания
+## Seed данных
 
-1. Войдите в админку.
-2. Создайте столы в разделе `Tables`.
-3. Установите глобальные правила в `ScheduleRule` (должна быть одна запись).
-4. Заполните `WorkingHours` для каждого дня недели.
-5. При необходимости добавьте `Closures` для закрытия всего зала или конкретного стола.
+```bash
+docker compose exec api python -m app.scripts.seed
+```
+
+Seed создаёт:
+- ScheduleRule
+- WorkingHours (пн-вс 09:00-21:00)
+- 3 таблицы
+
+## Проверка здоровья
+
+```bash
+curl http://localhost:8000/health
+```
 
 ## Пример бронирования (curl)
 
@@ -62,33 +70,54 @@ curl -X POST "http://localhost:8000/bookings/hold" \
   }'
 ```
 
-Ответ содержит `bookingId` и `paymentUrl` для оплаты.
+Ответ содержит `bookingId` и `paymentUrl`. В режиме Stub URL будет вида `http://localhost:8000/payments/{id}/stub`.
 
-## T-Bank webhook
-
-Укажите `TBANK_NOTIFICATION_URL`, например:
-
-```
-https://<your-domain>/webhooks/tbank
-```
-
-Вебхук идемпотентен: повторные уведомления не ломают состояние.
-
-## CalDAV (Яндекс)
-
-- `YANDEX_LOGIN` — логин Яндекс.
-- `YANDEX_APP_PASSWORD` — пароль приложения.
-- `YANDEX_CALENDAR_URL` — https://caldav.yandex.ru.
-
-По умолчанию используется первый календарь. Чтобы закрепить отдельный календарь за столом, задайте `YANDEX_CALENDAR_MAPPING` как JSON, например:
-
-```json
-{"1": "https://caldav.yandex.ru/calendars/user/calendar-id/"}
-```
-
-## Тесты
+## Ручное подтверждение брони (MVP)
 
 ```bash
+curl -X POST "http://localhost:8000/bookings/1/confirm" -H "X-Admin-Api-Key: $ADMIN_API_KEY"
+```
+
+## Telegram бот
+
+Bot запускается отдельным сервисом `telegram_bot`.
+
+- Если `TELEGRAM_BOT_TOKEN` отсутствует, бот выводит лог и завершает работу без ошибки.
+- Username бота получается через `getMe()`, fallback — `TELEGRAM_BOT_USERNAME`.
+
+Команды:
+- `/start` — начать
+- `/mybookings` — активные брони
+- `/cancel <id>` — отменить бронь
+- `/post_booking` — постер в группу (только для admin ids)
+
+## Group poster
+
+В админке доступна страница **Group Poster** с готовым текстом и ссылкой:
+
+```
+📦 Аренда столов для упаковки. Нажмите кнопку ниже, чтобы забронировать время.
+https://t.me/<bot_username>?start=from_group
+```
+
+## Интеграции
+
+Все интеграции включаются флагами.
+
+### T-Bank
+
+- `TBANK_ENABLED=false` (по умолчанию)
+- При выключенном флаге webhook отвечает `501`.
+
+### CalDAV (Яндекс)
+
+- `CALENDAR_ENABLED=false` (по умолчанию)
+- При выключенном флаге используется Stub.
+
+## Полезные команды
+
+```bash
+make migrate
 make test
 ```
 
@@ -104,12 +133,6 @@ app/
   models/
   services/
   workers/
-  tests/
-```
-
-## Полезные команды
-
-```bash
-make migrate
-make test
+  scripts/
+telegram_bot/
 ```

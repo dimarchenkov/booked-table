@@ -3,14 +3,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import get_session
 from app.models.booking import Booking, BookingStatus
 from app.models.payment import Payment, PaymentStatus
-from app.services.tbank import TBankClient, map_tbank_status
+from app.services.integrations.payment import get_payment_provider
 from app.workers.tasks import enqueue_calendar_create
 
 router = APIRouter()
@@ -19,12 +20,15 @@ logger = logging.getLogger(__name__)
 
 @router.post("/webhooks/tbank")
 async def tbank_webhook(request: Request, session: Session = Depends(get_session)) -> dict[str, Any]:
+    if not settings.tbank_enabled:
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="TBank disabled")
+
     payload = await request.json()
     safe_payload = {k: v for k, v in payload.items() if k.lower() not in {"token", "password"}}
     logger.info("TBank webhook received", extra={"payload": safe_payload})
 
-    client = TBankClient()
-    if not client.verify_notification(payload):
+    provider = get_payment_provider()
+    if not provider.verify_webhook(payload):
         raise HTTPException(status_code=400, detail="Invalid token")
 
     payment_id = payload.get("PaymentId")
@@ -35,9 +39,8 @@ async def tbank_webhook(request: Request, session: Session = Depends(get_session
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
-    new_status = map_tbank_status(payload.get("Status", ""))
-    existing_status = payment.status
-    if existing_status.value == new_status:
+    new_status = provider.map_status(payload.get("Status", ""))
+    if payment.status.value == new_status:
         return {"status": "ok"}
 
     payment.status = PaymentStatus(new_status)

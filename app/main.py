@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,7 @@ from app.admin.auth import AdminAuth
 from app.admin.views import (
     BookingAdmin,
     ClosureAdmin,
+    GroupPosterView,
     PaymentAdmin,
     ScheduleRuleAdmin,
     TableAdmin,
@@ -19,6 +21,7 @@ from app.admin.views import (
 from app.api.availability import router as availability_router
 from app.api.bookings import router as bookings_router
 from app.api.health import router as health_router
+from app.api.payments import router as payments_router
 from app.api.tables import router as tables_router
 from app.api.webhooks import router as webhooks_router
 from app.core.config import settings
@@ -45,12 +48,20 @@ app.include_router(health_router)
 app.include_router(tables_router)
 app.include_router(availability_router)
 app.include_router(bookings_router)
+app.include_router(payments_router)
 app.include_router(webhooks_router)
 
-admin = Admin(app, engine, authentication_backend=AdminAuth(secret_key=settings.secret_key))
+admin_templates = str(Path(__file__).parent / "admin" / "templates")
+admin = Admin(
+    app,
+    engine,
+    authentication_backend=AdminAuth(secret_key=settings.secret_key),
+    templates_dir=admin_templates,
+)
 admin.add_view(TableAdmin)
 admin.add_view(ScheduleRuleAdmin)
 admin.add_view(WorkingHourAdmin)
 admin.add_view(ClosureAdmin)
 admin.add_view(BookingAdmin)
 admin.add_view(PaymentAdmin)
+admin.add_view(GroupPosterView)

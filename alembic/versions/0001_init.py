@@ -74,6 +74,7 @@ def upgrade() -> None:
         sa.Column("buffer_minutes", sa.Integer(), nullable=False),
         sa.Column("min_booking_minutes", sa.Integer(), nullable=False),
         sa.Column("max_booking_minutes", sa.Integer(), nullable=False),
+        sa.Column("hold_minutes", sa.Integer(), nullable=False, server_default="10"),
     )
 
     op.create_table(
@@ -131,7 +132,7 @@ def upgrade() -> None:
 
     op.execute(
         "ALTER TABLE bookings ADD CONSTRAINT bookings_no_overlap "
-        "EXCLUDE USING gist (table_id WITH =, tsrange(start_at, end_at, '[]') WITH &&) "
+        "EXCLUDE USING gist (table_id WITH =, tsrange(start_at, end_at, '[)') WITH &&) "
         "WHERE (status IN ('HOLD', 'CONFIRMED'))"
     )
 

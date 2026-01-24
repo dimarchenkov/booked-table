@@ -4,12 +4,14 @@ from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.models import Booking, BookingStatus, Client, Payment, PaymentStatus, Table
-from app.services.tbank import TBankClient
+from app.services.integrations.payment import TBankPaymentProvider
 
 
 def test_webhook_idempotency(client, session):
+    settings.tbank_enabled = True
+    settings.tbank_terminal_key = "test-terminal"
     settings.tbank_password = "test-secret"
-    tbank = TBankClient()
+    tbank = TBankPaymentProvider()
 
     table = Table(name="A1")
     client_model = Client(tg_user_id=3, name="Tester")
@@ -56,3 +58,5 @@ def test_webhook_idempotency(client, session):
     session.refresh(booking)
     assert payment.status == PaymentStatus.PAID
     assert booking.status == BookingStatus.CONFIRMED
+
+    settings.tbank_enabled = False

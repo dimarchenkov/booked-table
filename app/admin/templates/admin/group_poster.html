@@ -1,0 +1,12 @@
+{% extends "sqladmin/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Group Poster</h2>
+  <p><strong>Poster text:</strong></p>
+  <pre>{{ poster_text }}</pre>
+  <p><strong>Link:</strong> <a href="{{ link }}" target="_blank">{{ link }}</a></p>
+  {% if instructions %}
+  <div class="alert alert-warning">{{ instructions }}</div>
+  {% endif %}
+</div>
+{% endblock %}

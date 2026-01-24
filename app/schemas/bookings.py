@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.models.booking import BookingStatus
+from app.models.booking import Booking, BookingStatus
 
 
 class BookingHoldRequest(BaseModel):
@@ -28,6 +28,21 @@ class BookingResponse(BaseModel):
     updated_at: datetime
     calendar_event_uid: Optional[str] = None
     calendar_event_href: Optional[str] = None
+
+    @classmethod
+    def from_model(cls, booking: Booking) -> "BookingResponse":
+        return cls(
+            id=booking.id,
+            table_id=booking.table_id,
+            client_id=booking.client_id,
+            start_at=booking.start_at,
+            end_at=booking.end_at,
+            status=booking.status,
+            created_at=booking.created_at,
+            updated_at=booking.updated_at,
+            calendar_event_uid=booking.calendar_event_uid,
+            calendar_event_href=booking.calendar_event_href,
+        )
 
 
 class BookingHoldResponse(BaseModel):

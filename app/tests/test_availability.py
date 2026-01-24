@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date
 
 from app.models import Closure, ScheduleRule, Table, WorkingHour
-from app.services.booking import BookingService
+from app.services.availability_service import generate_availability_slots
 
 
 def test_availability_with_closure(session):
@@ -11,7 +11,14 @@ def test_availability_with_closure(session):
     session.add(table)
     session.commit()
 
-    schedule = ScheduleRule(timezone="UTC", slot_minutes=60, buffer_minutes=0, min_booking_minutes=60, max_booking_minutes=240)
+    schedule = ScheduleRule(
+        timezone="UTC",
+        slot_minutes=60,
+        buffer_minutes=0,
+        min_booking_minutes=60,
+        max_booking_minutes=240,
+        hold_minutes=10,
+    )
     session.add(schedule)
     session.add(
         WorkingHour(
@@ -24,11 +31,10 @@ def test_availability_with_closure(session):
     session.commit()
 
     test_date = date(2025, 1, 6)  # Monday
-    service = BookingService(session)
-    slots = service.availability(table_id=table.id, date_value=test_date)
+    slots = generate_availability_slots(session, table_id=table.id, date_value=test_date)
     assert len(slots) == 3
 
     session.add(Closure(date=test_date, table_id=None, reason="Holiday"))
     session.commit()
-    slots_after = service.availability(table_id=table.id, date_value=test_date)
+    slots_after = generate_availability_slots(session, table_id=table.id, date_value=test_date)
     assert slots_after == []

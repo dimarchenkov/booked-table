@@ -41,5 +41,13 @@ services:
     depends_on:
       - redis
 
+  telegram_bot:
+    build: .
+    command: python -m telegram_bot.main
+    env_file: .env
+    depends_on:
+      - redis
+      - api
+
 volumes:
   postgres_data:

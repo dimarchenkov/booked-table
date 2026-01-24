@@ -4,11 +4,11 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models import Booking, BookingStatus, Table
-from app.services.calendar import CalendarService
+from app.services.booking_service import BookingService
+from app.services.integrations.calendar import get_calendar_provider
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -16,9 +16,12 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task
 def expire_holds() -> int:
+    """Expire HOLD bookings older than configured hold_minutes."""
+
     expired_count = 0
-    cutoff = datetime.now(tz=timezone.utc) - timedelta(minutes=10)
     with SessionLocal() as session:
+        hold_minutes = BookingService(session).get_schedule().hold_minutes
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(minutes=hold_minutes)
         bookings = session.scalars(
             select(Booking)
             .where(Booking.status == BookingStatus.HOLD)
@@ -46,6 +49,8 @@ def enqueue_calendar_delete(booking_id: int) -> None:
 
 @celery_app.task(bind=True, max_retries=5, default_retry_delay=60)
 def sync_calendar_event(self, booking_id: int, action: str) -> None:
+    """Sync booking event to calendar provider with retries."""
+
     try:
         with SessionLocal() as session:
             booking = session.scalar(select(Booking).where(Booking.id == booking_id))
@@ -54,9 +59,9 @@ def sync_calendar_event(self, booking_id: int, action: str) -> None:
             table = session.scalar(select(Table).where(Table.id == booking.table_id))
             if not table:
                 return
-            service = CalendarService()
+            provider = get_calendar_provider()
             if action == "create":
-                uid, href = service.create_event(
+                uid, href = provider.create_event(
                     table_id=table.id,
                     booking_id=booking.id,
                     start_at=booking.start_at,
@@ -66,7 +71,7 @@ def sync_calendar_event(self, booking_id: int, action: str) -> None:
                 booking.calendar_event_uid = uid
                 booking.calendar_event_href = href
             elif action == "delete":
-                service.delete_event(
+                provider.delete_event(
                     table_id=table.id,
                     href=booking.calendar_event_href,
                     uid=booking.calendar_event_uid,

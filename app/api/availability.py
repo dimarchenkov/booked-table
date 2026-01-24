@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_session
 from app.schemas.availability import SlotAvailability
-from app.services.booking import BookingService
+from app.services.availability_service import generate_availability_slots
 
 router = APIRouter()
 
@@ -18,6 +18,5 @@ def availability(
     date_value: date = Query(..., alias="date"),
     session: Session = Depends(get_session),
 ) -> list[SlotAvailability]:
-    service = BookingService(session)
-    slots = service.availability(table_id=table_id, date_value=date_value)
+    slots = generate_availability_slots(session, table_id=table_id, date_value=date_value)
     return [SlotAvailability(**slot) for slot in slots]

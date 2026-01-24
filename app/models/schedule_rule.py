@@ -15,3 +15,4 @@ class ScheduleRule(Base):
     buffer_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     min_booking_minutes: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
     max_booking_minutes: Mapped[int] = mapped_column(Integer, default=240, nullable=False)
+    hold_minutes: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
